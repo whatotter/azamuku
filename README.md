@@ -28,7 +28,7 @@ chmod +x azamuku
 
 here's a really cool flowchart on how it works (somewhat):
 
-[image](https://github.com/whatotter/azamuku/assets/42103041/fca3cdf6-b412-4287-a323-4c9317d092fd)
+![image](https://github.com/whatotter/azamuku/assets/42103041/fca3cdf6-b412-4287-a323-4c9317d092fd)
 
 the html response when it checks the command pool is an html file from `./core/masks/html`, with a replaced tag - these are called **masks**.  
 if you want to learn more about these masks, view `MASKS.md`
