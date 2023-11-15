@@ -1,7 +1,7 @@
 # azamuku - mutli-client, HTTP based reverse shell
 ### azamuku (aza·muku) - to deceive, to delude, to trick, to fool
 ***
-![Alt text](image-2.png)
+![image](https://github.com/whatotter/azamuku/assets/42103041/efff5782-c9b0-4d9a-82b7-cd1b4500c6e0)
 ***
 azamuku is a reverse shell inspired by [t3l3machus' hoaxshell](https://github.com/t3l3machus/hoaxshell) that bypasses windows defender, AMSI, and even malwarebytes (as of 11/11/23).
 
@@ -28,7 +28,7 @@ chmod +x azamuku
 
 here's a really cool flowchart on how it works (somewhat):
 
-![](image-1.png)
+[image](https://github.com/whatotter/azamuku/assets/42103041/fca3cdf6-b412-4287-a323-4c9317d092fd)
 
 the html response when it checks the command pool is an html file from `./core/masks/html`, with a replaced tag - these are called **masks**.  
 if you want to learn more about these masks, view `MASKS.md`
