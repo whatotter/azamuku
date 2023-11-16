@@ -60,4 +60,5 @@ same as hoaxshell's limits - no interactive commands/shells
 i'm pretty sure nobody is gonna contribute, but if you do, just don't mess up working features and make the code readable - other than that, go ham :)
 
 ## update logs
-none :(
+`11/15/23`: fixed some issues with below, added multirun and select   
+`11/14/23`: added a hotplug payload generator server and custom curl+iex payload for duckyscript attacks 

