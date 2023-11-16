@@ -1,7 +1,7 @@
 # azamuku - mutli-client, HTTP based reverse shell
 ### azamuku (aza·muku) - to deceive, to delude, to trick, to fool
 ***
-![image](https://github.com/whatotter/azamuku/assets/42103041/efff5782-c9b0-4d9a-82b7-cd1b4500c6e0)
+![image](https://github.com/whatotter/azamuku/assets/42103041/d084b127-e5c4-48f3-b42f-60266b12e6b4)
 ***
 azamuku is a reverse shell inspired by [t3l3machus' hoaxshell](https://github.com/t3l3machus/hoaxshell) that bypasses windows defender, AMSI, and even malwarebytes (as of 11/11/23).
 
