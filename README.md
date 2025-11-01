@@ -1,7 +1,7 @@
 # azamuku - mutli-client, HTTP based reverse shell
 ### azamuku (aza·muku) - to deceive, to delude, to trick, to fool
 ***
-![image](https://github.com/whatotter/azamuku/assets/42103041/d084b127-e5c4-48f3-b42f-60266b12e6b4)
+![image](https://github.com/whatotter/azamuku/assets/42103041/efff5782-c9b0-4d9a-82b7-cd1b4500c6e0)
 ***
 azamuku is a reverse shell inspired by [t3l3machus' hoaxshell](https://github.com/t3l3machus/hoaxshell) that bypasses windows defender, AMSI, and even malwarebytes (as of 11/11/23).
 
@@ -15,6 +15,7 @@ its also meant to **trick** (hence the name) sysadmins that are inspecting LAN/W
 - this isn't foolproof
 - https doesn't really work, but its not expected of you to use it anyways
 - i created everything, there was just inspo from hoaxshell
+- it's **highly** reccomended to create/obfuscate the payload - Microsoft does crawl github to find payloads, and it's highly likely it's found the one here
 
 ## setup
 ```
@@ -60,5 +61,6 @@ same as hoaxshell's limits - no interactive commands/shells
 i'm pretty sure nobody is gonna contribute, but if you do, just don't mess up working features and make the code readable - other than that, go ham :)
 
 ## update logs
+`11/1/25`: unpatch payload, fix comma
 `11/15/23`: fixed some issues with below, added multirun and select   
 `11/14/23`: added a hotplug payload generator server and custom curl+iex payload for duckyscript attacks 
