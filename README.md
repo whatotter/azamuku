@@ -3,7 +3,7 @@
 ***
 ![image](https://github.com/whatotter/azamuku/assets/42103041/efff5782-c9b0-4d9a-82b7-cd1b4500c6e0)
 ***
-azamuku is a reverse shell inspired by [t3l3machus' hoaxshell](https://github.com/t3l3machus/hoaxshell) that bypasses windows defender, AMSI, and even malwarebytes (as of 11/11/23).
+azamuku is a reverse shell inspired by [t3l3machus' hoaxshell](https://github.com/t3l3machus/hoaxshell) that bypasses windows defender, AMSI, and even malwarebytes (as of 11/1/25).
 
 it's not tested as of yet, but its also expected to bypass firewalls that are meant to block hoaxshell's beaconing and post requests, even if that same firewall manually inspected each HTTP(S) packet - due to the command being hidden in html, and the response being encoded
 
@@ -63,4 +63,5 @@ i'm pretty sure nobody is gonna contribute, but if you do, just don't mess up wo
 ## update logs
 `11/1/25`: unpatch payload, fix comma
 `11/15/23`: fixed some issues with below, added multirun and select   
+
 `11/14/23`: added a hotplug payload generator server and custom curl+iex payload for duckyscript attacks 
